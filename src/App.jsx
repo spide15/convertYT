@@ -8,102 +8,86 @@ function App() {
   const [urlResultA, setUrlResultA] = useState(null);
   const [urlResultV, setUrlResultV] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [showLoginForm, setShowLoginForm] = useState(false);
   const [enteredUsername, setEnteredUsername] = useState('');
   const [enteredPassword, setEnteredPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [notification, setNotification] = useState('');
+  const [notificationType, setNotificationType] = useState('info');
 
-  const toggleLoginModal = () => {
-    setShowLoginForm(!showLoginForm);
+  const showNotification = (message, type = 'info') => {
+    setNotification(message);
+    setNotificationType(type);
+    setTimeout(() => {
+      setNotification('');
+    }, 3000);
   };
-
-  const username = "deep";
-  const password = "welcome1";
-
-  // const handleLogin = (e) => {
-  //   e.preventDefault();
-
-  //   if (loggedIn) {
-  //     // If already logged in, perform logout
-  //     setLoggedIn(false);
-  //     setShowLoginForm(false);
-  //     return;
-  //   }
-
-  //   const enteredUsername = inputUsernameRef.current.value;
-  //   const enteredPassword = inputPasswordRef.current.value;
-
-  //   if (enteredUsername === username && enteredPassword === password) {
-  //     setLoggedIn(true);
-  //     setShowLoginForm(false);
-  //   } else {
-  //     alert("Invalid credentials. Please try again.");
-  //   }
-
-  //   inputUsernameRef.current.value = "";
-  //   inputPasswordRef.current.value = "";
-  // };
 
   const handleLogin = (e) => {
     e.preventDefault();
 
-    if (loggedIn) {
-      // If already logged in, perform logout
-      setLoggedIn(false);
-      setShowLoginForm(false);
-      setEnteredUsername('');
-      setEnteredPassword('');
-      return;
-    }
-
-    
-    const username = 'deep'; 
-    const password = 'welcome'; 
+    const username = 'deep';
+    const password = 'welcome';
 
     if (enteredUsername === username && enteredPassword === password) {
       setLoggedIn(true);
-      setShowLoginForm(false);
       setEnteredUsername('');
       setEnteredPassword('');
-    } else {
-      alert("Invalid credentials. Please try again.");
+      showNotification('Welcome back! You are now logged in.', 'success');
+      return;
     }
+
+    showNotification('Invalid username or password. Please try again.', 'error');
   };
 
   const handleLogout = () => {
     setLoggedIn(false);
+    setUrlResultA(null);
+    setUrlResultV(null);
+    setError('');
+    showNotification('You have been logged out.', 'info');
   };
 
   const handleAudio = (e) => {
     e.preventDefault()
 
     if (!loggedIn) {
-      alert("Please log in to use this feature.");
+      showNotification("Please log in to use this feature.", 'error');
       return;
     }
 
     const youtubeID = youtube_parser(inputUrlRef.current.value);
-    console.log(1.11)
+    if (!youtubeID) {
+      setError("Invalid YouTube URL. Please enter a valid URL.");
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setUrlResultA(null);
+
     const options = {
       method: 'get',
-      // url: 'https://ytstream-download-youtube-videos.p.rapidapi.com/dl',
       url: 'https://youtube-mp36.p.rapidapi.com/dl',
       headers: {
         'X-RapidAPI-Key': import.meta.env.VITE_RAPID_API_KEY_vid,
-        // 'X-RapidAPI-Host' :'ytstream-download-youtube-videos.p.rapidapi.com'
         'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com'
       },
       params: {
         id: youtubeID
       }
     }
-    // axios(options)
-    //     .then(res => {console.log(res.data.adaptiveFormats),setUrlResultA(res.data.adaptiveFormats[21].url)})
 
-    //     .catch(err => console.log(err))
     axios(options)
-      .then(res => setUrlResultA(res.data.link))
-      .catch(err => console.log(err))
-
+      .then(res => {
+        setUrlResultA(res.data.link);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.log(err);
+        setError("Failed to fetch MP3. Please try again.");
+        setLoading(false);
+      })
 
     inputUrlRef.current.value = '';
 
@@ -114,13 +98,20 @@ function App() {
     e.preventDefault()
 
     if (!loggedIn) {
-      alert("Please log in to use this feature.");
+      showNotification("Please log in to use this feature.", 'error');
       return;
     }
 
     const youtubeID = youtube_parser(inputUrlRef.current.value);
+    if (!youtubeID) {
+      setError("Invalid YouTube URL. Please enter a valid URL.");
+      return;
+    }
 
-    // console.log(inputUrlRef.current.value)
+    setLoading(true);
+    setError('');
+    setUrlResultV(null);
+
     const options = {
       method: 'GET',
       url: 'https://ytstream-download-youtube-videos.p.rapidapi.com/dl',
@@ -130,132 +121,146 @@ function App() {
       headers: {
         'X-RapidAPI-Key': import.meta.env.VITE_RAPID_API_KEY_vid,
         'X-RapidAPI-Host': 'ytstream-download-youtube-videos.p.rapidapi.com'
-        // 'X-RapidAPI-Host': 'youtube-mp3-download1.p.rapidapi.com'
       }
     };
-
-    // response.blob().then(blob => {
-    //   let url = window.URL.createObjectURL(blob);
-    //   let a = document.createElement('a');
-    //   a.href = url;
-    //   a.download = 'employees.json';
-    //   a.click();
-    // });
 
     axios(options)
       .then((res) => {
         console.log(res.data.adaptiveFormats[0].url)
         setUrlResultV(res.data.adaptiveFormats[0].url)
+        setLoading(false);
       })
-      .catch(err => console.log(err))
-
-
+      .catch(err => {
+        console.log(err);
+        setError("Failed to fetch Video. Please try again.");
+        setLoading(false);
+      })
 
     inputUrlRef.current.value = '';
 
   }
 
+  if (!loggedIn) {
+    return (
+      <div className="login-screen">
+        {notification && (
+          <div className={`notification ${notificationType}`}>
+            {notification}
+          </div>
+        )}
+
+        <div className="login-card">
+          <div className="login-header">
+            <span className="logo">Gada</span>
+            <p>Log in to access the YouTube converter.</p>
+          </div>
+
+          <form className="login-form" onSubmit={handleLogin}>
+            <input
+              type="text"
+              placeholder="Username"
+              value={enteredUsername}
+              onChange={(e) => setEnteredUsername(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={enteredPassword}
+              onChange={(e) => setEnteredPassword(e.target.value)}
+              required
+            />
+            <button type="submit" className="form_button">Log In</button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
-
-      <span className="logo">Gada</span>
-      <button
-        className="login-button"
-        onClick={toggleLoginModal}
-      >
-        {loggedIn ? 'Log Out' : 'Log In'}
-      </button>
-      {showLoginForm && !loggedIn && (
-        <div className="login-modal">
-          <div className="login-modal-content">
-            <span className="close" onClick={toggleLoginModal}>
-              &times;
-            </span>
-            <h2>Login</h2>
-            <form className="login-form" onSubmit={handleLogin}>
-              <input
-                type="text"
-                placeholder="Username"
-                value={enteredUsername}
-                onChange={(e) => setEnteredUsername(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={enteredPassword}
-                onChange={(e) => setEnteredPassword(e.target.value)}
-                required
-              />
-              <button type="submit">Log In</button>
-            </form>
-          </div>
+      {notification && (
+        <div className={`notification ${notificationType}`}>
+          {notification}
         </div>
       )}
+
+      <div className="top-bar">
+        <span className="logo">Gada</span>
+        <button className="login-button" onClick={handleLogout}>
+          Log Out
+        </button>
+      </div>
+
       <section className="content">
-        <h1 className="content_title">YouTube to MP3/Video Converter</h1>
-        <p className="content_description">
-          Transform YouTube videos into MP3/Mp4 in just a few clicks!
-        </p>
+        <div className="hero-card">
+          <div className="hero-copy">
+            <p className="hero-label">Instant converter</p>
+            <h1 className="content_title">YouTube to MP3 / MP4</h1>
+            <p className="content_description">
+              Paste a valid YouTube link, choose your output type, and download instantly.
+            </p>
+            <p className="hero-note">Secure, fast, and easy to use on any screen size.</p>
+          </div>
 
-        <form className="form">
-          <input ref={inputUrlRef} placeholder="Paste a Youtube video URL link..." className="form_input" type="text" />
-          {/* <button onClick={()=>{handleAudio;handleVideo}} type="submit" className="form_button">Search</button> */}
-          <button onClick={handleAudio} type="submit" className="form_button">Mp3</button>
-          <button onClick={handleVideo} type="submit" className="form_button">Video</button>
+          <div className="converter-card">
+            <div className="converter-header">
+              <span>Enter your YouTube link</span>
+              <span className="status-pill">Logged in</span>
+            </div>
 
-        </form>
+            <form className="form">
+              <input ref={inputUrlRef} placeholder="Paste the YouTube URL here..." className="form_input" type="text" />
+              <div className="button-group">
+                <button onClick={handleAudio} type="submit" className="form_button" disabled={loading}>Mp3(Only)</button>
+                <button onClick={handleVideo} type="submit" className="form_button" disabled={loading}>Video(Only)</button>
+              </div>
+            </form>
 
-        {urlResultA ? <a target='_blank' rel="noreferrer" href={urlResultA} className="download_btn my-2">Download MP3</a> : ''}
-        {urlResultV ? <a target='_blank' rel="noreferrer" href={urlResultV} className="form_button">Download Video</a> : ''}
+            {loading && <p className="loading">Processing your request...</p>}
+            {error && <p className="error">{error}</p>}
 
+            <div className="result-group">
+              {urlResultA && (
+                <a target="_blank" rel="noreferrer" href={urlResultA} className="download_btn">
+                  Download MP3
+                </a>
+              )}
+              {urlResultV && (
+                <a target="_blank" rel="noreferrer" href={urlResultV} className="download_btn secondary">
+                  Download Video
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card">
+            <h3>Fast Conversion</h3>
+            <p>Get audio or video links in seconds with one click.</p>
+          </div>
+          <div className="feature-card">
+            <h3>Mobile Friendly</h3>
+            <p>Works smoothly on phones, tablets, and desktop screens.</p>
+          </div>
+          <div className="feature-card">
+            <h3>Clean Interface</h3>
+            <p>A simple workflow designed for fast downloads.</p>
+          </div>
+        </div>
       </section>
     </div>
-
-
-
-
-
-
-
-
-
-    // before code
-    //   <div className="app">
-    //     <span className="logo">Gada</span>
-    //     <section className="content">
-    //       <h1 className="content_title">YouTube to MP3/Video Converter</h1>
-    //       <p className="content_description">
-    //         Transform YouTube videos into MP3/Mp4 in just a few clicks!
-    //       </p>
-
-    //       <form className="form">
-    //         <input ref={inputUrlRef} placeholder="Paste a Youtube video URL link..." className="form_input" type="text" />
-    //         {/* <button onClick={()=>{handleAudio;handleVideo}} type="submit" className="form_button">Search</button> */}
-    //         <button onClick={handleAudio} type="submit" className="form_button">Mp3</button>
-    //         <button onClick={handleVideo} type="submit" className="form_button">Video</button>
-
-    //       </form>
-
-    //       {urlResultA ? <a target='_blank' rel="noreferrer" href={urlResultA} className="download_btn my-2">Download MP3</a> : ''}
-    //       {urlResultV ? <a target='_blank' rel="noreferrer" href={urlResultV} className="form_button">Download Video</a> : ''}
-
-    //       {/* onClick={() => {
-    // 	fetch({urlResultV})
-    // 		.then(response => {
-    // 			response.blob().then(blob => {
-    // 				let url = window.URL.createObjectURL(blob);
-    // 				let a = document.createElement('a');
-    // 				a.href = url;
-    // 				a.download = `${youtubeID}`;
-    // 				a.click();
-    // 			});
-    // 			window.location.href = response.url;
-    // 	});
-    // }} */}
-    //     </section>
-    //   </div>
   )
+
+
+
+
+
+
+
+
+
 }
 
 export default App
